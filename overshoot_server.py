@@ -3,6 +3,7 @@ import zmq
 import zmq.asyncio
 import json
 import time
+import os
 
 ''' my laptop basically just listens for alerts from the Pi and prints them to the terminal.'''
 
@@ -10,20 +11,31 @@ async def listen_for_alerts(pull_socket):
     """Constantly listens for messages from the Pi."""
     print("[*] Listening for incoming alerts on port 5556...")
     while True:
-        # This waits silently until a message arrives
         parts = await pull_socket.recv_multipart()
         
-        # 2. Unpack the JSON metadata and the binary video
+        # Unpack the data
         metadata = json.loads(parts[0].decode('utf-8'))
         video_bytes = parts[1]
         
-        # 3. Save the video to your laptop's hard drive
-        filename = f"anomaly_capture_{int(time.time())}.mp4"
-        with open(filename, "wb") as f:
+        # Generate a unified timestamp prefix
+        timestamp = int(time.time())
+        
+        # Add the exact timestamp to the metadata before saving
+        metadata["timestamp"] = timestamp
+        
+        vid_filename = os.path.join("data", f"{timestamp}_video.mp4")
+        meta_filename = os.path.join("data", f"{timestamp}_meta.json")
+        
+        # Save the video
+        with open(vid_filename, "wb") as f:
             f.write(video_bytes)
             
+        # Save the metadata
+        with open(meta_filename, "w") as f:
+            json.dump(metadata, f, indent=4)
+            
         print(f"\n[🚨 ALERT]: {metadata['message']}")
-        print(f"[📁 VIDEO SAVED]: {filename}")
+        print(f"[📁 SAVED]: {vid_filename} and {meta_filename}")
         print("Command (start/stop): ", end="", flush=True)
 
 async def get_user_commands(pub_socket):
