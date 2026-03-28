@@ -27,7 +27,7 @@ def create_and_send_clip(frames_to_save, alert_text, push_socket, loop):
     height, width, _ = frames_to_save[0].shape
     
     # Write frames to the temporary file
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
     out = cv2.VideoWriter(temp_filename, fourcc, FPS, (width, height))
     for frame in frames_to_save:
         out.write(frame)
@@ -61,6 +61,9 @@ async def run_camera_loop(client, sub_socket, push_socket):
     # Make sure you are using the for await calls
     source = overshoot.FrameSource(width=640, height=480)
     loop = asyncio.get_running_loop()
+
+    poller = zmq.asyncio.Poller()
+    poller.register(sub_socket, zmq.POLLIN)
     
     print("Connecting to Overshoot...")
     stream = await client.streams.create(
@@ -82,28 +85,29 @@ async def run_camera_loop(client, sub_socket, push_socket):
     
     try:
         while True:
-            try:
-                msg = sub_socket.recv_string(flags=zmq.NOBLOCK)
+            # Check if any messages are waiting. Timeout=0 means "don't wait, just check"
+            events = dict(poller.poll(timeout=0))
+            
+            # If our sub_socket is in the events dictionary, a message is waiting!
+            if sub_socket in events:
+                # We can safely call recv_string() without it blocking or throwing an error
+                msg = sub_socket.recv_string() 
                 if msg == "stop":
                     print("\n[!] Stop command received. Halting camera.")
                     break
-            except zmq.Again:
-                pass # No message waiting, keep looping
 
-            # Process Camera Frame
             ret, bgr = cap.read()
-
             if not ret:
                 print("Camera feed lost.")
                 break
-
-            frame_buffer.append(bgr) # Keep a rolling buffer of recent frames
                 
+            frame_buffer.append(bgr)
+            
             rgba = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGBA)
             rgba = cv2.resize(rgba, (640, 480))
             source.push_frame(rgba) 
             
-            await asyncio.sleep(0.1) # throttle to ~10 FPS otherwise pi crashes out
+            await asyncio.sleep(0.1)
             
     except KeyboardInterrupt:
         print("\nStopping stream...")
