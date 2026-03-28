@@ -50,12 +50,23 @@ def create_and_send_clip(frames_to_save, alert_text, push_socket, loop):
     print("[+] Video sent.")
 
 def handle_overshoot_result(response, loop, push_socket):
-    text = response.result.lower()
-    if "yes" in text:
-        # Lock in the current buffer
-        captured_clip = list(frame_buffer)
-        # Send it off
-        create_and_send_clip(captured_clip, text, push_socket, loop)
+    try:
+        # The result is now guaranteed to be a JSON string
+        data = json.loads(response.result)
+        # Check the strict boolean
+        if data.get("detected") is True:
+            # Lock in the current buffer
+            print(f"\n[Found]: {data.get('description')}")
+            captured_clip = list(frame_buffer)            
+            # Send the video and the AI's detailed explanation over the network
+            description = data.get("description", "Target detected")
+            create_and_send_clip(captured_clip, description, push_socket, loop)
+        else:
+            # Print what the AI sees when the water is clear
+            print(f"[Clear] AI sees: {data.get('description')}")
+            
+    except json.JSONDecodeError:
+        print(f"[-] AI returned invalid JSON: {response.result}")
 
 async def run_camera_loop(client, sub_socket, push_socket):
     # Make sure you are using the for await calls
@@ -66,13 +77,28 @@ async def run_camera_loop(client, sub_socket, push_socket):
     poller.register(sub_socket, zmq.POLLIN)
     
     print("Connecting to Overshoot...")
+
+    DETECTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "detected": {
+            "type": "boolean",
+            "description": "True if a water bottle or boat is detected, otherwise false."
+        },
+        "description": {
+            "type": "string",
+            "description": "A short, 1-sentence description of what you currently see in the water."
+        }
+    },
+    "required": ["detected", "description"]
+    }
     stream = await client.streams.create(
         source=source,
-        prompt="Respond 'Yes' if there is a water bottle in frame, otherwise respond with what you see.",
+        prompt="Respond 'Yes' if there is a boat in frame, otherwise respond with what you see.",
         model="Qwen/Qwen3.5-4B",
         on_result=lambda r: handle_overshoot_result(r, loop, push_socket),
-        max_output_tokens=10,
-        
+        max_output_tokens=30,
+        output_schema=DETECTION_SCHEMA,
         #  3 FPS for a 1-second clip = 3 frames sent to the model per analysis
         target_fps=3,
         clip_length_seconds=1.0, 
