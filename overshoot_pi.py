@@ -85,7 +85,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
     "properties": {
         "detected": {
             "type": "boolean",
-            "description": "True if the requested target object is clearly visible, otherwise false."
+            "description": "True if the requested target object is confidently and clearly visible, otherwise false."
         },
         "description": {
             "type": "string",

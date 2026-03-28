@@ -95,7 +95,8 @@ async def main():
     # Run both tasks concurrently
     await asyncio.gather(
         listen_for_alerts(pull_socket),
-        get_user_commands(pub_socket)
+        get_user_commands(pub_socket),
+        watch_target_file(pub_socket)
     )
 
 if __name__ == "__main__":

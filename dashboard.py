@@ -24,10 +24,22 @@ with st.sidebar:
     st.header("UMD1 Boat Control")
     selected_boat = st.selectbox("Select Vessel:", ["Boat 1 (Pi)"])
     
-    st.divider()
-    st.write("### System Status")
     st.success("ZMQ port success")
-    st.info("Waiting for pi to send stuff...")
+
+    st.divider()
+    st.write("### Specify Target")
+    
+    # Text input for the new target
+    new_target = st.text_input("Instruct boat to look for:", placeholder="e.g., boat, green kayak")
+    
+    if st.button("Update Target"):
+        if new_target:
+            # Write to the drop-box file
+            with open("current_target.txt", "w") as f:
+                f.write(new_target)
+            st.success(f"Directive updated: {new_target}")
+        else:
+            st.warning("Please enter a target.")
 
 # --- Main Dashboard Logic ---
 # Map the UI selection to the actual folder name
