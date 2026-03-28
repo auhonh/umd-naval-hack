@@ -83,11 +83,11 @@ async def run_camera_loop(client, sub_socket, push_socket):
     "properties": {
         "detected": {
             "type": "boolean",
-            "description": "True if a water bottle or boat is detected, otherwise false."
+            "description": "True if a boat is confidently detected, otherwise false."
         },
         "description": {
             "type": "string",
-            "description": "A short, 1-sentence description of what you currently see in the water."
+            "description": "A short, 1-sentence description of what you currently see."
         }
     },
     "required": ["detected", "description"]

@@ -80,7 +80,7 @@ else:
                         
                 with col2:
                     st.write("### Incident Details")
-                    st.write(f"**AI Assessment:** {data['message']}")
+                    st.write(f"**Description:** {data['message']}")
                     st.write(f"**Capture Framerate:** {data['fps']} FPS")
                     st.write(f"**Clip Duration:** {data['duration']} seconds")
                     
