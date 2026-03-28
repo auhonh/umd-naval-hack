@@ -14,7 +14,7 @@ import zmq.asyncio
 load_dotenv()
 LAPTOP_IP = "192.168.6.218" # gonna have to change this when we move over to the hotspot IP
 API_KEY = os.getenv("OVERSHOOT_API_KEY")
-BUFFER_LENGTH_SECONDS = 3.0
+BUFFER_LENGTH_SECONDS = 2.0
 FPS = 10
 frame_buffer = deque(maxlen=int(BUFFER_LENGTH_SECONDS * FPS)) # Assuming 5 FPS max
 
@@ -76,6 +76,8 @@ async def run_camera_loop(client, sub_socket, push_socket):
     poller = zmq.asyncio.Poller()
     poller.register(sub_socket, zmq.POLLIN)
     
+    current_target = "boat"
+
     print("Connecting to Overshoot...")
 
     DETECTION_SCHEMA = {
@@ -83,7 +85,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
     "properties": {
         "detected": {
             "type": "boolean",
-            "description": "True if a boat is confidently detected, otherwise false."
+            "description": "True if the requested target object is clearly visible, otherwise false."
         },
         "description": {
             "type": "string",
@@ -94,7 +96,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
     }
     stream = await client.streams.create(
         source=source,
-        prompt="Respond 'Yes' if there is a boat in frame, otherwise respond with what you see.",
+        prompt="Respond True if there is a {current_target} in frame. Describe what you see.",
         model="Qwen/Qwen3.5-4B",
         on_result=lambda r: handle_overshoot_result(r, loop, push_socket),
         max_output_tokens=30,
@@ -121,6 +123,13 @@ async def run_camera_loop(client, sub_socket, push_socket):
                 if msg == "stop":
                     print("\n[!] Stop command received. Halting camera.")
                     break
+                elif msg.startswith("TARGET:"):
+                    # Extract the new target and update the stream live
+                    current_target = msg.split("TARGET:")[1]
+                    print(f"\n[!] Now looking for '{current_target}'")
+                    
+                    new_prompt = f"Respond True if there is a {current_target} in frame. Describe what you see."
+                    await stream.update_prompt(new_prompt)
 
             ret, bgr = cap.read()
             if not ret:

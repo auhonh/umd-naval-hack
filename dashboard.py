@@ -68,7 +68,7 @@ else:
             
             # --- Render the Alert UI ---
             # Use an expander so the screen doesn't get cluttered if you have 50 alerts
-            with st.expander(f"🚨 Anomaly Detected at {readable_time}", expanded=True):
+            with st.expander(f"Anomaly Detected at {readable_time}", expanded=True):
                 col1, col2 = st.columns([2, 1]) # Make video column wider than text column
                 
                 with col1:

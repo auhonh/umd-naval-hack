@@ -1,12 +1,39 @@
 import asyncio
+import aiofiles
 import zmq
 import zmq.asyncio
 import json
 import time
 import os
+import aiofiles
 
 ''' my laptop basically just listens for alerts from the Pi and prints them to the terminal.'''
-
+async def watch_target_file(pub_socket):
+    """Watches for UI updates and broadcasts the new target."""
+    filename = "current_target.txt"
+    last_modified = 0
+    
+    # Create the file if it doesn't exist
+    if not os.path.exists(filename):
+        with open(filename, "w") as f: f.write("")
+        
+    while True:
+        current_modified = os.path.getmtime(filename)
+        if current_modified > last_modified:
+            async with aiofiles.open(filename, mode='r') as f:
+                new_target = await f.read()
+                new_target = new_target.strip()
+                
+            if new_target:
+                # Broadcast the update to the Pi
+                await pub_socket.send_string(f"TARGET:{new_target}")
+                print(f"\n[+] Broadcasted new AI target: {new_target}")
+                print("Command (start/stop): ", end="", flush=True)
+                
+            last_modified = current_modified
+            
+        await asyncio.sleep(1) # Check every second
+        
 async def listen_for_alerts(pull_socket):
     """Constantly listens for messages from the Pi."""
     print("[*] Listening for incoming alerts on port 5556...")
