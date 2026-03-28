@@ -41,7 +41,8 @@ def create_and_send_clip(frames_to_save, alert_text, push_socket, loop):
     metadata = {
         "message": f"Target Identified! API identifies: '{alert_text}'",
         "fps": FPS,
-        "duration": BUFFER_LENGTH_SECONDS
+        "duration": BUFFER_LENGTH_SECONDS,
+        "current_target": alert_text
     }
     metadata_bytes = json.dumps(metadata).encode('utf-8')
     

@@ -49,6 +49,7 @@ async def listen_for_alerts(pull_socket):
         
         # Add the exact timestamp to the metadata before saving
         metadata["timestamp"] = timestamp
+
         
         vid_filename = os.path.join("data", f"{timestamp}_video.mp4")
         meta_filename = os.path.join("data", f"{timestamp}_meta.json")

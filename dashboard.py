@@ -57,7 +57,7 @@ else:
     meta_files = [f for f in files if f.endswith("_meta.json")]
     
     if not meta_files:
-        st.info("No anomalies detected yet.")
+        st.info("Nothing detected yet.")
     else:
         # 2. Sort them so the newest alerts are at the top
         meta_files.sort(reverse=True)
@@ -77,10 +77,12 @@ else:
                 
             # Convert Unix timestamp to a readable human time
             readable_time = datetime.fromtimestamp(data["timestamp"]).strftime('%Y-%m-%d %H:%M:%S')
+            detected_target = data.get("current_target", "Boat").title() # Fallback to "Boat" if not present
+
             
             # --- Render the Alert UI ---
             # Use an expander so the screen doesn't get cluttered if you have 50 alerts
-            with st.expander(f"Anomaly Detected at {readable_time}", expanded=True):
+            with st.expander(f"{detected_target} Detected at {readable_time}", expanded=True):
                 col1, col2 = st.columns([2, 1]) # Make video column wider than text column
                 
                 with col1:
