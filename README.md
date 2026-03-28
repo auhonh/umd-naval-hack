@@ -1,5 +1,6 @@
 # umd-naval-hack
 
-hell if i know
-
-vlms hell yea ts fire
+### Repo contents:
+1. Dashboard UI
+2. scripts imported to rasberry Pi
+3. ...
