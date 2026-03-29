@@ -107,7 +107,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
         },
         "description": {
             "type": "string",
-            "description": "A short, 1-sentence description of what you currently see. 15 words max."
+            "description": "A short, 1-sentence description of what you currently see."
         }
     },
     "required": ["detected", "description"]
@@ -117,7 +117,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
         prompt=f"Analyze the scene in a short 1 sentence description. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
         model="Qwen/Qwen3.5-9B",
         on_result=lambda r: asyncio.create_task(handle_overshoot_result(r, current_target, loop, push_socket)),
-        max_output_tokens=100,
+        max_output_tokens=300,
         output_schema=DETECTION_SCHEMA,
         #  3 FPS for a 1-second clip = 3 frames sent to the model per analysis
         target_fps=3,
