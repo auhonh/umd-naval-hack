@@ -50,7 +50,7 @@ async def create_and_send_clip(frames_to_save, alert_text, current_target, push_
     await push_socket.send_multipart([metadata_bytes, video_bytes])
     print("[+] Video sent.")
 
-def handle_overshoot_result(response, current_target, loop, push_socket):
+async def handle_overshoot_result(response, current_target, loop, push_socket):
     try:
         # The result is now guaranteed to be a JSON string
         data = json.loads(response.result)
@@ -99,7 +99,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
         source=source,
         prompt=f"Analyze the scene. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
         model="Qwen/Qwen3.5-4B",
-        on_result=lambda r: handle_overshoot_result(r, current_target, loop, push_socket),
+        on_result=lambda r: asyncio.create_task(handle_overshoot_result(r, current_target, loop, push_socket)),
         max_output_tokens=50,
         output_schema=DETECTION_SCHEMA,
         #  3 FPS for a 1-second clip = 3 frames sent to the model per analysis
