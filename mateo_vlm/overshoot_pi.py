@@ -114,7 +114,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
     }
     stream = await client.streams.create(
         source=source,
-        prompt=f"Analyze the scene. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
+        prompt=f"Analyze the scene in a short 1 sentence description. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
         model="Qwen/Qwen3.5-9B",
         on_result=lambda r: asyncio.create_task(handle_overshoot_result(r, current_target, loop, push_socket)),
         max_output_tokens=100,
@@ -125,6 +125,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
         delay_seconds=0.5,
         interval_seconds=5.0 # Ask for analysis every 2 seconds
     )
+    
 
     cap = cv2.VideoCapture(0)
     print("Streaming frames... Press Ctrl+C in the terminal to stop.")
@@ -158,8 +159,6 @@ async def run_camera_loop(client, sub_socket, push_socket):
             rgba = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGBA)
             rgba = cv2.resize(rgba, (640, 480))
             source.push_frame(rgba) 
-            
-            await asyncio.sleep(0.1)
             
     except KeyboardInterrupt:
         print("\nStopping stream...")
