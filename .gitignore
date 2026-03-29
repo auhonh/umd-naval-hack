@@ -2,3 +2,4 @@
 .env
 data/
 __pycache__/
+auh_coco_cv/yolo26n.pt
