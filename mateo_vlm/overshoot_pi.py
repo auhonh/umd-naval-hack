@@ -122,8 +122,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
         #  3 FPS for a 1-second clip = 3 frames sent to the model per analysis
         target_fps=3,
         clip_length_seconds=1.0, 
-        delay_seconds=0.5,
-        interval_seconds=5.0 # Ask for analysis every 2 seconds
+        delay_seconds=5.0,
     )
     
 
