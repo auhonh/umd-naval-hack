@@ -18,7 +18,7 @@ BUFFER_LENGTH_SECONDS = 3.0
 FPS = 15
 frame_buffer = deque(maxlen=int(BUFFER_LENGTH_SECONDS * FPS)) # Assuming 5 FPS max
 
-def create_and_send_clip(frames_to_save, alert_text, current_target, push_socket, loop):
+async def create_and_send_clip(frames_to_save, alert_text, current_target, push_socket, loop):
     """Compiles the mp4 and fires it over the network."""
     if not frames_to_save:
         return
@@ -47,21 +47,21 @@ def create_and_send_clip(frames_to_save, alert_text, current_target, push_socket
     metadata_bytes = json.dumps(metadata).encode('utf-8')
     
     # Fire the multipart message safely from the async loop
-    loop.create_task(push_socket.send_multipart([metadata_bytes, video_bytes]))
+    await push_socket.send_multipart([metadata_bytes, video_bytes])
     print("[+] Video sent.")
 
-def handle_overshoot_result(response, current_target, loop, push_socket):
+async def handle_overshoot_result(response, current_target, loop, push_socket):
     try:
         # The result is now guaranteed to be a JSON string
         data = json.loads(response.result)
         # Check the strict boolean
-        if data.get("detected") is True:
+        if data.get("detected") is True and current_target.lower() in data.get("description").lower():
             # Lock in the current buffer
             print(f"\n[Found]: {data.get('description')}")
             captured_clip = list(frame_buffer)            
             # Send the video and the AI's detailed explanation over the network
             description = data.get("description", "Target detected")
-            create_and_send_clip(captured_clip, description, current_target, push_socket, loop)
+            await create_and_send_clip(captured_clip, description, current_target, push_socket, loop)
         else:
             # Print what the AI sees when the water is clear
             print(f"[Clear] AI sees: {data.get('description')}")
@@ -97,7 +97,7 @@ async def run_camera_loop(client, sub_socket, push_socket):
     }
     stream = await client.streams.create(
         source=source,
-        prompt="Analyze the scene. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
+        prompt=f"Analyze the scene. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
         model="Qwen/Qwen3.5-4B",
         on_result=lambda r: handle_overshoot_result(r, current_target, loop, push_socket),
         max_output_tokens=50,
