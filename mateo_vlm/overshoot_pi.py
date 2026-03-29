@@ -55,7 +55,7 @@ async def handle_overshoot_result(response, current_target, loop, push_socket):
         # The result is now guaranteed to be a JSON string
         data = json.loads(response.result)
         # Check the strict boolean
-        if data.get("detected") is True and current_target.lower() in data.get("description").lower():
+        if data.get("detected") is True:
             # Lock in the current buffer
             print(f"\n[Found]: {data.get('description')}")
             captured_clip = list(frame_buffer)            
@@ -73,9 +73,6 @@ async def run_camera_loop(client, sub_socket, push_socket):
     # Make sure you are using the for await calls
     source = overshoot.FrameSource(width=640, height=480)
     loop = asyncio.get_running_loop()
-
-    poller = zmq.asyncio.Poller()
-    poller.register(sub_socket, zmq.POLLIN)
     
     current_target = "boat"
 
@@ -114,23 +111,22 @@ async def run_camera_loop(client, sub_socket, push_socket):
     
     try:
         while True:
-            # Check if any messages are waiting. Timeout=0 means "don't wait, just check"
-            events = dict(poller.poll(timeout=0))
-            
             # If our sub_socket is in the events dictionary, a message is waiting!
-            if sub_socket in events:
-                # We can safely call recv_string() without it blocking or throwing an error
-                msg = sub_socket.recv_string() 
+            try:
+                # Ask for a message. If none exists, it instantly throws zmq.Again
+                msg = await sub_socket.recv_string(flags=zmq.NOBLOCK)
+                
                 if msg == "stop":
                     print("\n[!] Stop command received. Halting camera.")
                     break
                 elif msg.startswith("TARGET:"):
-                    # Extract the new target and update the stream live
                     current_target = msg.split("TARGET:")[1]
-                    print(f"\n[!] Now looking for '{current_target}'")
-                    
+                    print(f"\n[!] Directive Updated: Now looking for '{current_target}'")
                     new_prompt = f"Analyze the scene. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see rooms or empty water, respond False."
                     await stream.update_prompt(new_prompt)
+                    
+            except zmq.Again:
+                pass # No command waiting, keep looping the camera!
 
             ret, bgr = cap.read()
             if not ret:
