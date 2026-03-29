@@ -50,7 +50,7 @@ async def create_and_send_clip(frames_to_save, alert_text, current_target, push_
     await push_socket.send_multipart([metadata_bytes, video_bytes])
     print("[+] Video sent.")
 
-async def handle_overshoot_result(response, current_target, loop, push_socket):
+def handle_overshoot_result(response, current_target, loop, push_socket):
     try:
         # The result is now guaranteed to be a JSON string
         data = json.loads(response.result)
