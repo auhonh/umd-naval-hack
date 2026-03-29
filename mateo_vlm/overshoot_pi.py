@@ -8,15 +8,35 @@ from collections import deque
 import time
 import zmq
 import zmq.asyncio
+import subprocess
 
 ''' running this on the pi, so we need to open a port and send info to the terminal when needed.'''
 
 load_dotenv()
-LAPTOP_IP = "192.168.6.218" # gonna have to change this when we move over to the hotspot IP
 API_KEY = os.getenv("OVERSHOOT_API_KEY")
-BUFFER_LENGTH_SECONDS = 3.0
+BUFFER_LENGTH_SECONDS = 5.0
 FPS = 15
 frame_buffer = deque(maxlen=int(BUFFER_LENGTH_SECONDS * FPS)) # Assuming 5 FPS max
+
+def get_command_center_ip():
+    """Reads the Linux routing table to find the hotspot host's IP address."""
+    try:
+        # Run the standard Linux 'ip route' command silently
+        result = subprocess.run(['ip', 'route'], capture_output=True, text=True)
+        for line in result.stdout.split('\n'):
+            # The 'default' line always points back to the host router (your laptop)
+            if line.startswith('default'):
+                gateway_ip = line.split()[2]
+                print(f"[*] Auto-detected Command Center at: {gateway_ip}")
+                return gateway_ip
+    except Exception as e:
+        print(f"[-] Auto-discovery failed: {e}")
+        
+    # Fallback just in case you are testing on a weird network
+    print("[-] Falling back to hardcoded IP.")
+    return "192.168.6.218"
+
+LAPTOP_IP = get_command_center_ip()
 
 async def create_and_send_clip(frames_to_save, alert_text, current_target, push_socket, loop):
     """Compiles the mp4 and fires it over the network."""
@@ -95,15 +115,15 @@ async def run_camera_loop(client, sub_socket, push_socket):
     stream = await client.streams.create(
         source=source,
         prompt=f"Analyze the scene. You are strictly looking for a {current_target}. Respond True ONLY if the {current_target} is clearly visible. If you only see people, rooms, or empty water, respond False.",
-        model="Qwen/Qwen3.5-4B",
+        model="Qwen/Qwen3.5-9B",
         on_result=lambda r: asyncio.create_task(handle_overshoot_result(r, current_target, loop, push_socket)),
-        max_output_tokens=50,
+        max_output_tokens=100,
         output_schema=DETECTION_SCHEMA,
         #  3 FPS for a 1-second clip = 3 frames sent to the model per analysis
         target_fps=3,
         clip_length_seconds=1.0, 
         delay_seconds=0.5,
-        interval_seconds=2.0 # Ask for analysis every 2 seconds
+        interval_seconds=5.0 # Ask for analysis every 2 seconds
     )
 
     cap = cv2.VideoCapture(0)
@@ -157,6 +177,7 @@ async def main():
     print(f"[*] Linking to Command Center at {LAPTOP_IP}...")
     sub_socket = ctx.socket(zmq.SUB)
     sub_socket.connect(f"tcp://{LAPTOP_IP}:5555")
+    
     sub_socket.setsockopt_string(zmq.SUBSCRIBE, "") # Subscribe to all messages
 
     # Connect to Command Center (Alerts Out)

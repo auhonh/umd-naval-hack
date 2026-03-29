@@ -6,6 +6,7 @@ import json
 import time
 import os
 import aiofiles
+from ultralytics import YOLO
 
 ''' my laptop basically just listens for alerts from the Pi and prints them to the terminal.'''
 async def watch_target_file(pub_socket):
@@ -33,9 +34,26 @@ async def watch_target_file(pub_socket):
             last_modified = current_modified
             
         await asyncio.sleep(1) # Check every second
-        
+
+def process_yolo_video(yolo_model, vid_filename):
+            # save=True forces YOLO to render out a full video
+            # project/name forces it to save into data/annotated/ instead of the default runs/detect/
+            yolo_model(
+                vid_filename, 
+                classes=[8], 
+                imgsz=320, 
+                conf=0.05, 
+                save=True, 
+                project="data", 
+                name="annotated", 
+                exist_ok=True
+            )
+
 async def listen_for_alerts(pull_socket):
     """Constantly listens for messages from the Pi."""
+    yolo_model = YOLO('yolo26n.pt') # Load the model once at startup
+    loop = asyncio.get_running_loop() # Grab the loop so we can use the executor
+
     print("[*] Listening for incoming alerts on port 5556...")
     while True:
         parts = await pull_socket.recv_multipart()
@@ -50,14 +68,16 @@ async def listen_for_alerts(pull_socket):
         # Add the exact timestamp to the metadata before saving
         metadata["timestamp"] = timestamp
 
-        
         vid_filename = os.path.join("data", f"{timestamp}_video.mp4")
         meta_filename = os.path.join("data", f"{timestamp}_meta.json")
         
         # Save the video
         with open(vid_filename, "wb") as f:
             f.write(video_bytes)
-            
+
+        # RUN YOLO ON THIS VIDEO AND DRAW THE BOXES ON THE VIDEO
+        await loop.run_in_executor(None, process_yolo_video, yolo_model, vid_filename)
+
         # Save the metadata
         with open(meta_filename, "w") as f:
             json.dump(metadata, f, indent=4)
